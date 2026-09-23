@@ -10,7 +10,6 @@ from pathlib import Path       # para manipular os caminhos dos arquivos
 import openpyxl                  # para gerar o excel
 from openpyxl.styles import Font # para formatar o excel
 
-
 ZIP = r"C:\Users\laura\Documents\UTFPR\TCC\psath_21092026.zip"              # caminho do zip
 ARQUIVO_EXTRAIDO = r"C:\Users\laura\Documents\UTFPR\TCC\dados_extraidos"    # pasta onde os txt serão extraídos
 SAIDA = r"C:\Users\laura\Documents\UTFPR\TCC\saida.xlsx"                    # excel gerado
