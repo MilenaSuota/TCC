@@ -4,16 +4,16 @@ import re       # para leitura do titulo do arquivo
 import sys      # para pegar argumentos da linha de comando
 import zipfile  # para extrair arquivos zip
 
-from datetime import datetime  # para ordenar as linhas por data
-from pathlib import Path       # para manipular os caminhos dos arquivos
+from datetime import datetime, timedelta  # para ordenar as linhas por data e somar dias
+from pathlib import Path                  # para manipular os caminhos dos arquivos
 
 import openpyxl                  # para gerar o excel
 from openpyxl.styles import Font # para formatar o excel
 
 
-ZIP = r"C:\Users\laura\Documents\UTFPR\TCC\psath_21092026.zip"              # caminho do zip
+ZIP = r"C:\Users\laura\Documents\UTFPR\TCC\GEFS50_precipitacao14d_20260922.zip"              # caminho do zip
 ARQUIVO_EXTRAIDO = r"C:\Users\laura\Documents\UTFPR\TCC\dados_extraidos"    # pasta onde os txt serão extraídos
-SAIDA = r"C:\Users\laura\Documents\UTFPR\TCC\saida.xlsx"                    # excel gerado
+SAIDA = r"C:\Users\laura\Documents\UTFPR\TCC\saidaGEFS.xlsx"                    # excel gerado
 USINA = "PSATMAU"                                                           # usina
 
 # Funcao para extrair o zip e retornar o path da pasta extraida:
@@ -26,13 +26,21 @@ def extrair_zip(caminho_zip: str, pasta_saida: str) -> Path:
 
     return pasta_saida
 
-# Funcao para extrair a data do nome do arquivo:
+# Funcao para extrair a data do nome do arquivo (formato antigo, DDMMAAAA):
 def extrair_data_do_nome(nome_arquivo: str) -> str | None:
     match = re.search(r"(\d{2})(\d{2})(\d{4})", nome_arquivo)
     if not match:
         return None
     dia, mes, ano = match.groups()
     return f"{dia}/{mes}/{ano}"
+
+# Funcao para extrair a data base do nome do arquivo GEFS_m_* (formato DDMMAA):
+def extrair_data_base_serie(nome_arquivo: str) -> datetime | None:
+    match = re.search(r"(\d{2})(\d{2})(\d{2})(?!\d)", nome_arquivo)
+    if not match:
+        return None
+    dia, mes, ano = match.groups()
+    return datetime(2000 + int(ano), int(mes), int(dia))
 
 # Função para encontrar a linha que contém a usina de Maua:
 def encontrar_linha_palavra(linhas: list[str], palavra: str) -> str | None:
@@ -54,6 +62,39 @@ def separar_campos(linha: str) -> list[str]:
             return campos
     return campos  # devolve o que tiver, mesmo que incompleto
 
+# Função para processar arquivos do tipo GEFS_m_* (uma linha por usina, várias colunas de dias):
+def processar_arquivo_serie(caminho: Path, palavra: str) -> list[list[str]]:
+    data_base = extrair_data_base_serie(caminho.name)
+    if not data_base:
+        print(f"[aviso] Não consegui extrair a data base de: {caminho.name}")
+        return []
+
+    try:
+        with open(caminho, "r", encoding="latin-1") as f:
+            linhas = f.readlines()
+    except Exception as e:
+        print(f"[erro] Falha ao ler {caminho.name}: {e}")
+        return []
+
+    linha_alvo = encontrar_linha_palavra(linhas, palavra)
+    if not linha_alvo:
+        print(f"[aviso] Linha com '{palavra}' não encontrada em {caminho.name}")
+        return []
+
+    campos = separar_campos(linha_alvo)
+    if len(campos) < 4:
+        print(f"[aviso] Linha em {caminho.name} não tem campos suficientes: {campos}")
+        return []
+
+    latitude, longitude = campos[1], campos[2]
+    valores = campos[3:]  # os valores de precipitação, um por dia
+
+    saida = []
+    for i, valor in enumerate(valores, start=1):
+        data = data_base + timedelta(days=i)
+        saida.append([data.strftime("%d/%m/%Y"), palavra, latitude, longitude, valor])
+    return saida
+
 # Função principal que processa a pasta e monta as linhas de saída:
 def processar_pasta(pasta: Path, palavra: str) -> list[list[str]]:
     linhas_saida = []
@@ -62,6 +103,12 @@ def processar_pasta(pasta: Path, palavra: str) -> list[list[str]]:
         print(f"[aviso] Nenhum arquivo .txt encontrado em {pasta}")
 
     for arquivo in arquivos_txt:
+        # arquivos de série (várias datas na mesma linha)
+        if "GEFS_m_" in arquivo.name:
+            linhas_saida.extend(processar_arquivo_serie(arquivo, palavra))
+            continue
+
+        # arquivos antigos (uma data por arquivo, nome com 8 dígitos)
         data_formatada = extrair_data_do_nome(arquivo.name)
         if not data_formatada:
             print(f"[aviso] Não consegui extrair a data do nome: {arquivo.name}")
