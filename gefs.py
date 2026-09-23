@@ -12,7 +12,7 @@ from openpyxl.styles import Font # para formatar o excel
 
 
 ZIP = r"C:\Users\laura\Documents\UTFPR\TCC\GEFS50_precipitacao14d_20260922.zip"              # caminho do zip
-ARQUIVO_EXTRAIDO = r"C:\Users\laura\Documents\UTFPR\TCC\dados_extraidos"    # pasta onde os txt serão extraídos
+ARQUIVO_EXTRAIDO = r"C:\Users\laura\Documents\UTFPR\TCC\dados_extraidos"    # pasta onde os dat serão extraídos
 SAIDA = r"C:\Users\laura\Documents\UTFPR\TCC\saidaGEFS.xlsx"                    # excel gerado
 USINA = "PSATMAU"                                                           # usina
 
@@ -98,11 +98,11 @@ def processar_arquivo_serie(caminho: Path, palavra: str) -> list[list[str]]:
 # Função principal que processa a pasta e monta as linhas de saída:
 def processar_pasta(pasta: Path, palavra: str) -> list[list[str]]:
     linhas_saida = []
-    arquivos_txt = sorted(pasta.rglob("*.txt"))
-    if not arquivos_txt:
-        print(f"[aviso] Nenhum arquivo .txt encontrado em {pasta}")
+    arquivos_dat = sorted(pasta.rglob("*.dat"))
+    if not arquivos_dat:
+        print(f"[aviso] Nenhum arquivo .dat encontrado em {pasta}")
 
-    for arquivo in arquivos_txt:
+    for arquivo in arquivos_dat:
         # arquivos de série (várias datas na mesma linha)
         if "GEFS_m_" in arquivo.name:
             linhas_saida.extend(processar_arquivo_serie(arquivo, palavra))
